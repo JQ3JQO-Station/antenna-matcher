@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>アンテナ給電マッチング ガイド — JQ3JQO</title>
+  <meta name="description" content="アンテナの種類と給電点から最適なマッチングトランス（UnUn/Balun）を自動選定し、巻数と配線図を生成します。">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <span class="callsign">JQ3JQO</span>
+  <span class="title">アンテナ給電マッチング ガイド</span>
+</header>
+
+<main>
+
+  <!-- Step progress bar -->
+  <div class="step-progress" id="step-progress">
+    <div class="step-dot active" id="sdot-1"><div class="dot">1</div><div class="label">アンテナ</div></div>
+    <div class="step-line" id="sline-1"></div>
+    <div class="step-dot" id="sdot-2"><div class="dot">2</div><div class="label">給電点</div></div>
+    <div class="step-line" id="sline-2"></div>
+    <div class="step-dot" id="sdot-3"><div class="dot">3</div><div class="label">詳細</div></div>
+    <div class="step-line" id="sline-3"></div>
+    <div class="step-dot" id="sdot-4"><div class="dot">4</div><div class="label">周波数帯</div></div>
+    <div class="step-line" id="sline-4"></div>
+    <div class="step-dot" id="sdot-5"><div class="dot">★</div><div class="label">結果</div></div>
+  </div>
+
+  <!-- ===== Step 1: Antenna Type ===== -->
+  <div class="card" id="step1">
+    <h2><span class="step-num">1</span> アンテナの種類を選んでください</h2>
+    <div class="option-grid">
+      <button class="option-btn" data-value="longwire" onclick="selectAntenna(this)">
+        <span class="icon">〜</span>
+        <span>ロングワイヤー</span>
+        <span class="label">端部/L型給電</span>
+      </button>
+      <button class="option-btn" data-value="delta" onclick="selectAntenna(this)">
+        <span class="icon">△</span>
+        <span>デルタループ</span>
+        <span class="label">三角形ループ</span>
+      </button>
+      <button class="option-btn" data-value="dipole" onclick="selectAntenna(this)">
+        <span class="icon">—|—</span>
+        <span>ダイポール</span>
+        <span class="label">フルサイズ</span>
+      </button>
+      <button class="option-btn" data-value="other" onclick="selectAntenna(this)">
+        <span class="icon">?</span>
+        <span>その他</span>
+        <span class="label">手動入力</span>
+      </button>
+    </div>
+    <div class="nav-buttons">
+      <span></span>
+      <button class="btn btn-primary" id="btn-next1" onclick="goStep(2)" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== Step 2: Feed Point ===== -->
+  <div class="card hidden" id="step2">
+    <h2><span class="step-num">2</span> 給電方法・給電点を選んでください</h2>
+    <div class="option-grid" id="feedpoint-options"></div>
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="goStep(1)">← 戻る</button>
+      <button class="btn btn-primary" id="btn-next2" onclick="goStep(3)" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== Step 3: Antenna Details ===== -->
+  <div class="card hidden" id="step3">
+    <h2><span class="step-num">3</span> アンテナの詳細を入力してください</h2>
+    <div id="step3-content">
+      <!-- Dynamically filled based on antenna type -->
+    </div>
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="goStep(2)">← 戻る</button>
+      <button class="btn btn-primary" onclick="goStep(4)">次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== Step 4: Frequency Bands ===== -->
+  <div class="card hidden" id="step4">
+    <h2><span class="step-num">4</span> 対象の周波数帯を選んでください（複数可）</h2>
+    <p class="text-muted" style="font-size:0.85rem;margin-bottom:1rem;">最も低い周波数でコアのインダクタンスが決まります。</p>
+    <div class="band-grid" id="band-grid">
+      <label class="band-chip" id="chip-3.5">
+        <input type="checkbox" value="3.5" onchange="toggleBand(this)">3.5 MHz
+      </label>
+      <label class="band-chip" id="chip-7">
+        <input type="checkbox" value="7" onchange="toggleBand(this)">7 MHz
+      </label>
+      <label class="band-chip" id="chip-10">
+        <input type="checkbox" value="10" onchange="toggleBand(this)">10 MHz
+      </label>
+      <label class="band-chip" id="chip-14">
+        <input type="checkbox" value="14" onchange="toggleBand(this)">14 MHz
+      </label>
+      <label class="band-chip" id="chip-18">
+        <input type="checkbox" value="18" onchange="toggleBand(this)">18 MHz
+      </label>
+      <label class="band-chip" id="chip-21">
+        <input type="checkbox" value="21" onchange="toggleBand(this)">21 MHz
+      </label>
+      <label class="band-chip" id="chip-24">
+        <input type="checkbox" value="24" onchange="toggleBand(this)">24 MHz
+      </label>
+      <label class="band-chip" id="chip-28">
+        <input type="checkbox" value="28" onchange="toggleBand(this)">28 MHz
+      </label>
+      <label class="band-chip" id="chip-50">
+        <input type="checkbox" value="50" onchange="toggleBand(this)">50 MHz
+      </label>
+    </div>
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="goStep(3)">← 戻る</button>
+      <button class="btn btn-primary" id="btn-calc" onclick="calculate()" disabled>計算する ★</button>
+    </div>
+  </div>
+
+  <!-- ===== Result Panel ===== -->
+  <div id="result-panel">
+
+    <div class="result-header">
+      <h2>★ マッチング選定結果</h2>
+      <button class="btn btn-ghost" onclick="resetAll()">やり直す</button>
+      <button class="btn btn-ghost" onclick="window.print()">印刷</button>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="result-grid" id="result-summary"></div>
+
+    <!-- Recommendation box -->
+    <div class="reco-box" id="result-reco"></div>
+
+    <!-- Connection diagram -->
+    <div class="svg-section">
+      <h3>接続図</h3>
+      <div class="svg-wrap" id="conn-diagram"></div>
+    </div>
+
+    <!-- Core table -->
+    <div class="card mt-2" id="core-section">
+      <h2>コア・巻数 計算結果</h2>
+      <p class="text-muted" style="font-size:0.85rem;margin-bottom:0.75rem;">
+        ★ 推奨コアを最初に検討してください。
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="core-table" id="core-table">
+          <thead>
+            <tr>
+              <th>コア</th>
+              <th>材質</th>
+              <th>巻数</th>
+              <th>線材長</th>
+              <th>実効L (μH)</th>
+              <th>XL (Ω)</th>
+              <th>状態</th>
+            </tr>
+          </thead>
+          <tbody id="core-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Winding diagram -->
+    <div class="card mt-2" id="winding-section">
+      <h2>巻き方図解</h2>
+      <div id="winding-selector" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
+      <div class="svg-wrap" id="winding-diagram"></div>
+    </div>
+
+    <!-- Band analysis (longwire only) -->
+    <div class="card mt-2 hidden" id="band-analysis-section">
+      <h2>バンド別マッチング評価（ロングワイヤー）</h2>
+      <table class="band-results" id="band-results-table">
+        <thead>
+          <tr><th>周波数</th><th>評価</th><th>備考</th></tr>
+        </thead>
+        <tbody id="band-results-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /result-panel -->
+
+</main>
+
+<script src="js/matcher.js"></script>
+<script src="js/calc_unun.js"></script>
+<script src="js/drawing.js"></script>
+<script>
+'use strict';
+
+// ---- App state ----
+const state = {
+  step: 1,
+  antennaType: null,
+  feedPoint: null,
+  wireLength: null,
+  bands: [],
+  pattern: null,
+  coreResults: null
+};
+
+// ---- Step navigation ----
+function goStep(n) {
+  // Validate before advancing
+  if (n === 3 && !state.feedPoint) return;
+  if (n === 4 && !state.feedPoint) return;
+  if (n === 5) { calculate(); return; }
+
+  document.querySelectorAll('.card[id^="step"]').forEach(c => c.classList.add('hidden'));
+  const target = document.getElementById(`step${n}`);
+  if (target) target.classList.remove('hidden');
+
+  document.getElementById('result-panel').classList.remove('visible');
+
+  updateProgressBar(n);
+  state.step = n;
+
+  if (n === 2) renderFeedPoints();
+  if (n === 3) renderStep3();
+}
+
+function updateProgressBar(activeStep) {
+  for (let i = 1; i <= 5; i++) {
+    const dot = document.getElementById(`sdot-${i}`);
+    if (!dot) continue;
+    dot.classList.remove('active', 'done');
+    if (i < activeStep) dot.classList.add('done');
+    else if (i === activeStep) dot.classList.add('active');
+  }
+  for (let i = 1; i <= 4; i++) {
+    const line = document.getElementById(`sline-${i}`);
+    if (!line) continue;
+    line.classList.toggle('done', i < activeStep);
+  }
+}
+
+// ---- Step 1: Antenna selection ----
+function selectAntenna(btn) {
+  document.querySelectorAll('#step1 .option-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  state.antennaType = btn.dataset.value;
+  state.feedPoint = null;
+  document.getElementById('btn-next1').disabled = false;
+
+  if (state.antennaType === 'other') {
+    document.getElementById('btn-next1').disabled = true;
+    alert('その他のアンテナは現在対応していません。ロングワイヤー・デルタループ・ダイポールをご利用ください。');
+    btn.classList.remove('selected');
+    state.antennaType = null;
+  }
+}
+
+// ---- Step 2: Feed point ----
+function renderFeedPoints() {
+  const container = document.getElementById('feedpoint-options');
+  container.innerHTML = '';
+  document.getElementById('btn-next2').disabled = true;
+
+  const fps = window.Matcher.getFeedPoints(state.antennaType);
+  fps.forEach(fp => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.dataset.value = fp.id;
+    btn.innerHTML = `<span style="font-weight:bold;font-size:0.95rem;">${fp.label}</span><span class="label">${fp.description}</span>`;
+    if (state.feedPoint === fp.id) btn.classList.add('selected');
+    btn.onclick = () => {
+      container.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      state.feedPoint = fp.id;
+      document.getElementById('btn-next2').disabled = false;
+    };
+    container.appendChild(btn);
+  });
+}
+
+// ---- Step 3: Antenna details ----
+function renderStep3() {
+  const content = document.getElementById('step3-content');
+
+  if (state.antennaType === 'longwire') {
+    content.innerHTML = `
+      <div class="callout">
+        <strong>ロングワイヤーの長さ</strong>について：半波長の整数倍を避けると給電点インピーダンスの極端な変化を抑えられます。
+      </div>
+      <div class="form-row">
+        <label>ワイヤー長 (m)</label>
+        <input type="number" id="wire-length" value="20" min="1" max="500" step="0.5">
+      </div>`;
+  } else {
+    const patternInfo = window.Matcher.selectPattern(state.antennaType, state.feedPoint);
+    content.innerHTML = `
+      <div class="callout">
+        <strong>${state.antennaType === 'delta' ? 'デルタループ' : 'ダイポール'}</strong>の給電点が選択されています。<br>
+        推定インピーダンス: <strong>${patternInfo ? patternInfo.impedance + 'Ω' : '—'}</strong>
+        ${patternInfo ? `<br>変換比: <strong>${patternInfo.ratio} ${patternInfo.transformerType}</strong>` : ''}
+      </div>
+      <p class="text-muted" style="font-size:0.85rem;">追加入力は不要です。次へ進んでください。</p>`;
+  }
+}
+
+// ---- Step 4: Band selection ----
+function toggleBand(cb) {
+  const chip = cb.closest('.band-chip');
+  const val = parseFloat(cb.value);
+  if (cb.checked) {
+    chip.classList.add('checked');
+    if (!state.bands.includes(val)) state.bands.push(val);
+  } else {
+    chip.classList.remove('checked');
+    state.bands = state.bands.filter(b => b !== val);
+  }
+  document.getElementById('btn-calc').disabled = state.bands.length === 0;
+}
+
+// ---- Calculate ----
+function calculate() {
+  // Read longwire length if applicable
+  if (state.antennaType === 'longwire') {
+    const lwInput = document.getElementById('wire-length');
+    state.wireLength = lwInput ? parseFloat(lwInput.value) : null;
+  }
+
+  state.pattern = window.Matcher.selectPattern(state.antennaType, state.feedPoint);
+  if (!state.pattern) return;
+
+  const lowestBand = Math.min(...state.bands);
+  state.coreResults = window.CalcUnun.calcAllCores(lowestBand, state.pattern.ratioNum, state.pattern.transformerType);
+
+  renderResult();
+
+  // Hide all steps, show result
+  document.querySelectorAll('.card[id^="step"]').forEach(c => c.classList.add('hidden'));
+  document.getElementById('result-panel').classList.add('visible');
+  updateProgressBar(5);
+  window.scrollTo(0, 0);
+}
+
+// ---- Render result ----
+function renderResult() {
+  const p = state.pattern;
+  const lowestBand = Math.min(...state.bands);
+
+  // Summary grid
+  const sumEl = document.getElementById('result-summary');
+  sumEl.innerHTML = `
+    <div class="result-item">
+      <div class="r-label">推定インピーダンス</div>
+      <div class="r-value">~${p.impedance} Ω</div>
+    </div>
+    <div class="result-item highlight">
+      <div class="r-label">変換比</div>
+      <div class="r-value">${p.ratio}</div>
+    </div>
+    <div class="result-item">
+      <div class="r-label">トランス種別</div>
+      <div class="r-value">${p.transformerType}</div>
+      <div class="r-sub">${p.transformerType === 'UnUn' ? '不平衡→不平衡' : '平衡→不平衡'}</div>
+    </div>
+    <div class="result-item">
+      <div class="r-label">対象最低周波数</div>
+      <div class="r-value">${lowestBand} MHz</div>
+      <div class="r-sub">選択帯域: ${state.bands.sort((a,b)=>a-b).join(', ')} MHz</div>
+    </div>
+  `;
+
+  // Recommendation box
+  const recoEl = document.getElementById('result-reco');
+  recoEl.innerHTML = `
+    <h3>選定理由</h3>
+    <p>${p.notes}</p>
+  `;
+
+  // Connection diagram
+  window.Drawing.drawConnectionDiagram(document.getElementById('conn-diagram'), p);
+
+  // Core table
+  const tbody = document.getElementById('core-tbody');
+  tbody.innerHTML = '';
+  state.coreResults.forEach(cr => {
+    const tr = document.createElement('tr');
+    if (cr.recommended) tr.classList.add('recommended');
+    tr.innerHTML = `
+      <td>${cr.recommended ? '' : ''}${cr.core.label}</td>
+      <td>${cr.core.material}材</td>
+      <td class="val">${cr.turns}回</td>
+      <td class="val">${cr.wireLength_m} m</td>
+      <td>${cr.L_actual_uH} μH</td>
+      <td class="${cr.ok ? 'ok-val' : 'warn-val'}">${cr.Xl_actual} Ω</td>
+      <td class="${cr.ok ? 'ok-val' : 'warn-val'}">${cr.ok ? '✓ OK' : '⚠ 不足'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Winding diagram with core selector
+  renderWindingSection();
+
+  // Band analysis (longwire only)
+  const result = window.Matcher.buildResult(p, state.bands, state.wireLength);
+  if (result.bandAnalysis.length > 0) {
+    document.getElementById('band-analysis-section').classList.remove('hidden');
+    const btbody = document.getElementById('band-results-tbody');
+    btbody.innerHTML = '';
+    result.bandAnalysis.forEach(ba => {
+      const tr = document.createElement('tr');
+      const qualityMap = {
+        ok:      { cls: 'ok',   text: '良好' },
+        caution: { cls: 'warn', text: '注意（インピーダンス変動大）' },
+        avoid:   { cls: 'warn', text: '非推奨（半波長付近）' }
+      };
+      const q = qualityMap[ba.quality] || { cls: '', text: ba.quality };
+      tr.innerHTML = `<td>${ba.freq} MHz</td><td class="${q.cls}">${q.text === '良好' ? '✓' : '⚠'} ${q.text}</td><td class="${q.cls}">${ba.quality === 'avoid' ? 'ワイヤー長を調整推奨' : ''}</td>`;
+      btbody.appendChild(tr);
+    });
+  } else {
+    document.getElementById('band-analysis-section').classList.add('hidden');
+  }
+}
+
+function renderWindingSection() {
+  const selector = document.getElementById('winding-selector');
+  selector.innerHTML = '';
+  state.coreResults.forEach((cr, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-secondary';
+    btn.style.fontSize = '0.8rem';
+    if (cr.recommended) {
+      btn.className = 'btn btn-primary';
+      btn.style.fontSize = '0.8rem';
+    }
+    btn.textContent = cr.core.label + (cr.recommended ? ' ★' : '');
+    btn.onclick = () => {
+      document.querySelectorAll('#winding-selector .btn').forEach(b => {
+        b.className = 'btn btn-secondary';
+        b.style.fontSize = '0.8rem';
+      });
+      btn.className = 'btn btn-primary';
+      btn.style.fontSize = '0.8rem';
+      window.Drawing.drawWindingDiagram(
+        document.getElementById('winding-diagram'),
+        cr,
+        state.pattern.transformerType
+      );
+    };
+    selector.appendChild(btn);
+  });
+
+  // Draw recommended core by default
+  const rec = state.coreResults.find(c => c.recommended) || state.coreResults[0];
+  window.Drawing.drawWindingDiagram(
+    document.getElementById('winding-diagram'),
+    rec,
+    state.pattern.transformerType
+  );
+}
+
+// ---- Reset ----
+function resetAll() {
+  state.antennaType = null;
+  state.feedPoint = null;
+  state.wireLength = null;
+  state.bands = [];
+  state.pattern = null;
+  state.coreResults = null;
+
+  document.querySelectorAll('#step1 .option-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('btn-next1').disabled = true;
+  document.querySelectorAll('.band-chip').forEach(c => {
+    c.classList.remove('checked');
+    c.querySelector('input').checked = false;
+  });
+  document.getElementById('btn-calc').disabled = true;
+  document.getElementById('result-panel').classList.remove('visible');
+  document.getElementById('band-analysis-section').classList.add('hidden');
+
+  goStep(1);
+}
+</script>
+
+</body>
+</html>
