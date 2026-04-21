@@ -1,6 +1,5 @@
 /**
  * calc_unun.js — Toroid winding calculation for UnUn / Balun
- * Calculates number of turns and wire length for a given core and frequency.
  */
 
 'use strict';
@@ -13,128 +12,157 @@ const CORES = [
   { id: 'FT240-61', label: 'FT240-61', Al: 230,  OD_mm: 61.0, ID_mm: 35.6, H_mm: 25.4, material: '61' }
 ];
 
-// Material characteristics (rough guidance)
-const MATERIAL_GUIDE = {
-  '43': { freqRange: '1\u201330 MHz', charColor: '#f0883e', note: 'HF\u5e2f\u5411\u3051\u30fb\u640d\u5931\u4f4e\u3081' },
-  '61': { freqRange: '10\u201360 MHz', charColor: '#58a6ff', note: 'VHF\u5c0e\u5165\u30fbHF\u9ad8\u5468\u6ce2\u5411\u3051' }
-};
-
 /**
- * Calculate minimum inductance needed at a given frequency.
- * Rule: XL >= 4 * Z_source (50 ohm system)
- * @param {number} freqMHz
- * @param {number} zSource  - source impedance (default 50 ohm)
- * @returns {number} required inductance in Henry
+ * Winding method definitions by ratio + type.
+ * windType: 'trifilar' | 'bifilar' | 'bifilar-balun' | 'current-balun'
  */
-function calcRequiredL(freqMHz, zSource) {
-  zSource = zSource || 50;
-  const minXL = 4 * zSource;           // ohms
-  const omega = 2 * Math.PI * freqMHz * 1e6;
-  return minXL / omega;                // Henry
+function getWindingMethod(ratioNum, txType) {
+  // 9:1 UnUn — trifilar (3 wires in parallel) winding
+  if (ratioNum === 9 && txType === 'UnUn') {
+    return {
+      windType: 'trifilar',
+      wires: 3,
+      name: 'トリファイラ巻き（3本並行）',
+      shortName: '9:1 UnUn',
+      steps: [
+        '3本の電線を並べて束にする',
+        'その束をコアに N 回均等に巻く',
+        '【コア側 50Ω】3本の始端を全て接続 → 同軸シールドへ',
+        '【アンテナ側 ~450Ω】線A終端 + 線B始端を接続、線B終端 + 線C始端を接続',
+        '線A始端 → 同軸センター、線C終端 → アンテナ線',
+        '線A始端 = 同軸センター、コアシールド = 同軸シールド'
+      ],
+      connectionNote: '3本直列でアンテナ側(高Z)、3本並列でコア側(50Ω)'
+    };
+  }
+  // 4:1 UnUn — bifilar autotransformer
+  if (ratioNum === 4 && txType === 'UnUn') {
+    return {
+      windType: 'bifilar',
+      wires: 2,
+      name: 'バイファイラ巻き（2本並行）',
+      shortName: '4:1 UnUn',
+      steps: [
+        '2本の電線を並べて束にする',
+        'その束をコアに N 回均等に巻く',
+        '線A終端 + 線B始端を接続（中間タップ）',
+        '【50Ω側】線A始端 → コア中心、線A始端 = 同軸センター',
+        '【~200Ω側】線B終端 → アンテナ線',
+        '線A終端 = 線B始端 → グランド（同軸シールド）'
+      ],
+      connectionNote: '2本直列でアンテナ側(高Z)、中間タップでコア側(50Ω)'
+    };
+  }
+  // 4:1 Balun — bifilar transmission line
+  if (ratioNum === 4 && txType === 'Balun') {
+    return {
+      windType: 'bifilar-balun',
+      wires: 2,
+      name: 'バイファイラ伝送線路型',
+      shortName: '4:1 Balun',
+      steps: [
+        '2本の電線を並べて束にする（ツイストペア推奨）',
+        'その束をコアに N 回均等に巻く',
+        '線A終端 + 線B始端を接続',
+        '【50Ω側】線A始端 → 同軸センター、線B終端 → 同軸シールド',
+        '【~200Ω Balun側】線A始端 と 線B終端 をアンテナの2点へ',
+        '中間接続点（A終=B始）はオープン'
+      ],
+      connectionNote: '伝送線路型。平衡アンテナ→不平衡50Ω'
+    };
+  }
+  // 2:1 Balun — bifilar
+  if (ratioNum === 2 && txType === 'Balun') {
+    return {
+      windType: 'bifilar',
+      wires: 2,
+      name: 'バイファイラ巻き',
+      shortName: '2:1 Balun',
+      steps: [
+        '2本の電線を並べて束にする',
+        'その束をコアに N 回均等に巻く',
+        '線A終端 + 線B始端を接続（センタータップ）',
+        '【50Ω側】線A始端 → 同軸センター、センタータップ → 同軸シールド',
+        '【~100Ω Balun側】線A終端(=線B始端) と 線B終端 をアンテナへ'
+      ],
+      connectionNote: '平衡アンテナ100Ω → 不平衡50Ω'
+    };
+  }
+  // 1:1 current Balun — bifilar
+  return {
+    windType: 'current-balun',
+    wires: 2,
+    name: 'バイファイラ電流 Balun',
+    shortName: '1:1 Balun',
+    steps: [
+      '2本の電線を並べて束にする（ツイストペア推奨）',
+      'その束をコアに N 回均等に巻く',
+      '線A始端 → 同軸センター、線B始端 → 同軸シールド',
+      '線A終端 → アンテナ+側、線B終端 → アンテナ−側',
+      'コアはコモンモード電流を抑制する'
+    ],
+    connectionNote: 'コモンモード抑制。直結73Ω→50Ω'
+  };
 }
 
 /**
- * Calculate number of turns for a given core and inductance.
- * N = sqrt(L_H / Al_H)  where Al is in H (converted from nH/N^2)
- * @param {number} L_H   - required inductance in Henry
- * @param {number} Al_nH - core Al value in nH/N^2
- * @returns {number} turns (rounded up)
+ * Calculate minimum inductance needed at a given frequency.
+ * Rule: XL >= 4 * 50Ω
  */
+function calcRequiredL(freqMHz, zSource) {
+  zSource = zSource || 50;
+  const minXL = 4 * zSource;
+  const omega = 2 * Math.PI * freqMHz * 1e6;
+  return minXL / omega;
+}
+
 function calcTurns(L_H, Al_nH) {
   const Al_H = Al_nH * 1e-9;
   return Math.ceil(Math.sqrt(L_H / Al_H));
 }
 
-/**
- * Estimate wire length for given turns on a toroid.
- * Wire per turn ≈ pi * (OD_mm + ID_mm) / 2  +  H_mm  (mean path length per turn)
- * Plus ~15% overhead for lead dress and connections.
- * @param {number} turns
- * @param {object} core
- * @returns {number} estimated wire length in meters
- */
-function calcWireLength(turns, core) {
+function calcWireLength(turns, core, wires) {
+  wires = wires || 1;
   const meanCirc_mm = Math.PI * (core.OD_mm + core.ID_mm) / 2;
-  const perTurn_mm  = meanCirc_mm + core.H_mm * 2; // approximate path around toroid
-  const total_mm    = perTurn_mm * turns * 1.15;    // 15% overhead
-  return Math.round(total_mm) / 1000;               // convert to meters, round to mm
+  const perTurn_mm  = meanCirc_mm + core.H_mm * 2;
+  const total_mm    = perTurn_mm * turns * wires * 1.15; // 15% lead dress
+  return Math.round(total_mm) / 1000;
 }
 
 /**
  * Calculate winding data for all cores at a given frequency.
- * @param {number} freqMHz      - lowest target frequency
- * @param {number} ratioNum     - transformer ratio (e.g. 4 for 4:1)
- * @param {string} txType       - 'UnUn' or 'Balun'
- * @returns {Array} array of {core, turns, wireLength_m, L_uH, Xl, ok}
  */
 function calcAllCores(freqMHz, ratioNum, txType) {
   const L_H = calcRequiredL(freqMHz);
   const omega = 2 * Math.PI * freqMHz * 1e6;
+  const method = getWindingMethod(ratioNum, txType);
 
   return CORES.map(core => {
     const turns = calcTurns(L_H, core.Al);
-    const wireLength_m = calcWireLength(turns, core);
+    const wireLength_m = calcWireLength(turns, core, method.wires);
 
-    // Actual inductance achieved
-    const L_actual_H = (turns * turns) * core.Al * 1e-9;
-    const L_actual_uH = L_actual_H * 1e6;
-    const Xl_actual = omega * L_actual_H;
+    const L_actual_H  = (turns * turns) * core.Al * 1e-9;
+    const L_actual_uH = (L_actual_H * 1e6).toFixed(1);
+    const Xl_actual   = Math.round(omega * L_actual_H);
 
-    // Recommended for HF (3.5-30MHz) use material 43; 10-50MHz use 61
-    const recMat = freqMHz <= 10 ? '43' : '61';
+    const recMat    = freqMHz <= 10 ? '43' : '61';
     const recommended = core.material === recMat;
-
-    // Winding instruction
-    const winding = buildWindingInstruction(turns, ratioNum, txType);
 
     return {
       core,
       turns,
       wireLength_m: wireLength_m.toFixed(2),
-      L_actual_uH: L_actual_uH.toFixed(1),
-      Xl_actual: Math.round(Xl_actual),
+      L_actual_uH,
+      Xl_actual,
       ok: Xl_actual >= 4 * 50,
       recommended,
-      winding
+      method,      // winding method object
+      winding: {   // backwards compat
+        description: `${method.name} ${turns}回`
+      }
     };
   });
 }
 
-/**
- * Build winding instruction text based on ratio and type.
- * @param {number} turns
- * @param {number} ratioNum
- * @param {string} txType
- * @returns {object} {primary, secondary, description}
- */
-function buildWindingInstruction(turns, ratioNum, txType) {
-  if (ratioNum === 1) {
-    return {
-      primary: turns,
-      secondary: turns,
-      description: `${turns}\u56de\u5dfb\u304d\u30fb\u30d0\u30a4\u30d5\u30a3\u30e9\u30fc\u5dfb\u304d`
-    };
-  }
-
-  if (txType === 'UnUn') {
-    // Autotransformer style — total turns split by ratio
-    const secTurns  = turns;
-    const tapPoint  = Math.round(turns / Math.sqrt(ratioNum));
-    return {
-      primary: tapPoint,
-      secondary: secTurns,
-      description: `\u5168\u4f53${secTurns}\u56de\u5dfb\u304d\u3001\u30bf\u30c3\u30d7\u70b9\u306f${tapPoint}\u56de\u76ee\uff08\u30aa\u30fc\u30c8\u30c8\u30e9\u30f3\u30b9\u5f62\u5f0f\uff09`
-    };
-  } else {
-    // Balun: wound as transmission line (bifilar)
-    const halfTurns = Math.round(turns / 2);
-    return {
-      primary: halfTurns,
-      secondary: halfTurns,
-      description: `${halfTurns}\u56de\u30d0\u30a4\u30d5\u30a1\u30fc\u5dfb\u304d\uff08\u4f1d\u9001\u7dda\u5f0f\uff09`
-    };
-  }
-}
-
 // Export
-window.CalcUnun = { CORES, MATERIAL_GUIDE, calcRequiredL, calcTurns, calcWireLength, calcAllCores };
+window.CalcUnun = { CORES, getWindingMethod, calcRequiredL, calcTurns, calcWireLength, calcAllCores };
