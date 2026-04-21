@@ -127,8 +127,13 @@
 
     <div class="result-header">
       <h2>★ マッチング選定結果</h2>
-      <button class="btn btn-ghost" onclick="resetAll()">やり直す</button>
-      <button class="btn btn-ghost" onclick="window.print()">印刷</button>
+    </div>
+    <div class="nav-buttons" style="margin-bottom:1rem;">
+      <button class="btn btn-secondary" onclick="goStep(4)">← 周波数帯を変更</button>
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn btn-secondary" onclick="window.print()">🖨 印刷</button>
+        <button class="btn btn-secondary" onclick="resetAll()">↺ やり直す</button>
+      </div>
     </div>
 
     <!-- Summary cards -->
