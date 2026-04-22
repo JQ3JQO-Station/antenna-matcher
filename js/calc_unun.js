@@ -107,18 +107,31 @@ function getWindingMethod(ratioNum, txType) {
 
 /**
  * Calculate minimum inductance needed at a given frequency.
- * Rule: XL >= 4 * 50Ω
+ * Rule: XL >= 10 * Rmin  (practical HF transformer minimum; 4x is mathematical floor only)
  */
 function calcRequiredL(freqMHz, zSource) {
   zSource = zSource || 50;
-  const minXL = 4 * zSource;
-  const omega = 2 * Math.PI * freqMHz * 1e6;
+  const minXL = 10 * zSource;   // practical minimum: 10x for good bandwidth
+  const omega  = 2 * Math.PI * freqMHz * 1e6;
   return minXL / omega;
 }
 
-function calcTurns(L_H, Al_nH) {
-  const Al_H = Al_nH * 1e-9;
-  return Math.ceil(Math.sqrt(L_H / Al_H));
+/**
+ * Practical minimum turns per winding type.
+ * Physical reality: too few turns = poor coupling, mutual inductance issues.
+ */
+const MIN_TURNS = {
+  'trifilar':      9,   // 9:1 UnUn — 9 turns is the classic minimum
+  'bifilar':       8,   // 4:1 UnUn / 2:1 Balun
+  'bifilar-balun': 8,   // 4:1 Balun
+  'current-balun': 8    // 1:1 Balun
+};
+
+function calcTurns(L_H, Al_nH, windType) {
+  const Al_H  = Al_nH * 1e-9;
+  const calc  = Math.ceil(Math.sqrt(L_H / Al_H));
+  const minT  = MIN_TURNS[windType] || 6;
+  return Math.max(calc, minT);
 }
 
 function calcWireLength(turns, core, wires) {
@@ -138,7 +151,7 @@ function calcAllCores(freqMHz, ratioNum, txType) {
   const method = getWindingMethod(ratioNum, txType);
 
   return CORES.map(core => {
-    const turns = calcTurns(L_H, core.Al);
+    const turns = calcTurns(L_H, core.Al, method.windType);
     const wireLength_m = calcWireLength(turns, core, method.wires);
 
     const L_actual_H  = (turns * turns) * core.Al * 1e-9;
