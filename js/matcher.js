@@ -108,25 +108,55 @@ function getFeedPoints(antennaType) {
 }
 
 /**
- * Estimate matching quality for a given longwire length and band.
- * Returns a rough SWR estimate based on whether length is resonant or not.
- * @param {number} lengthM  - wire length in meters
- * @param {number} freqMHz  - target frequency in MHz
- * @returns {string} quality descriptor
+ * Analyze longwire length for a given band.
+ * Returns quality + concrete adjustment advice.
+ * @param {number} lengthM
+ * @param {number} freqMHz
+ * @returns {object} { quality, halfWaveM, nearestN, advice }
  */
 function estimateLongwireMatch(lengthM, freqMHz) {
-  const wavelength = 300 / freqMHz;
-  const ratio = lengthM / wavelength;
-  const half = ratio * 2; // multiples of half-wave
-  const nearHalf = half % 1;
-  // Avoid half-wave resonance (high Z at end)
+  const halfWaveM = 150 / freqMHz;          // one half-wavelength in meters
+  const ratio     = lengthM / halfWaveM;    // how many half-waves fit
+  const nearHalf  = ratio % 1;              // fractional part (0=exact multiple)
+
+  // Nearest half-wave multiple
+  const nearestN  = Math.round(ratio);
+  const nearestLen = nearestN * halfWaveM;  // length of nearest problematic point
+
+  // Safe zone: avoid within ±15% of a half-wave multiple
+  let quality;
   if (nearHalf < 0.08 || nearHalf > 0.92) {
-    return 'avoid'; // near half-wave multiple — very high or low Z
+    quality = 'avoid';
+  } else if (nearHalf < 0.15 || nearHalf > 0.85) {
+    quality = 'caution';
+  } else {
+    quality = 'ok';
   }
-  if (nearHalf < 0.15 || nearHalf > 0.85) {
-    return 'caution';
+
+  // Build concrete advice for avoid/caution cases
+  let advice = '';
+  if (quality !== 'ok') {
+    // Suggest moving to the midpoint between two half-wave multiples
+    // i.e., (N-0.5) * halfWaveM  or  (N+0.5) * halfWaveM
+    const safeShort = (nearestN - 0.5) * halfWaveM;  // shorter safe length
+    const safeLong  = (nearestN + 0.5) * halfWaveM;  // longer safe length
+
+    // Pick the closer safe target
+    const diffShort = lengthM - safeShort;
+    const diffLong  = safeLong - lengthM;
+
+    if (safeShort > 0 && diffShort <= diffLong) {
+      const delta = Math.abs(diffShort);
+      advice = `λ/2 の ${nearestN} 倍 (${nearestLen.toFixed(1)}m) に近接。`
+             + `${delta.toFixed(1)}m 短くして ${safeShort.toFixed(1)}m にすると改善。`;
+    } else {
+      const delta = Math.abs(diffLong);
+      advice = `λ/2 の ${nearestN} 倍 (${nearestLen.toFixed(1)}m) に近接。`
+             + `${delta.toFixed(1)}m 長くして ${safeLong.toFixed(1)}m にすると改善。`;
+    }
   }
-  return 'ok';
+
+  return { quality, halfWaveM, nearestN, nearestLen, advice };
 }
 
 /**
@@ -146,8 +176,8 @@ function buildResult(pattern, bands, lengthM) {
 
   if (pattern.antennaType === 'longwire' && lengthM) {
     result.bandAnalysis = bands.map(f => {
-      const quality = estimateLongwireMatch(lengthM, f);
-      return { freq: f, quality };
+      const res = estimateLongwireMatch(lengthM, f);
+      return { freq: f, quality: res.quality, advice: res.advice, halfWaveM: res.halfWaveM };
     });
   }
 

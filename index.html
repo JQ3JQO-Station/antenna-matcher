@@ -443,17 +443,30 @@ function renderResult() {
   const result = window.Matcher.buildResult(p, state.bands, state.wireLength);
   if (result.bandAnalysis.length > 0) {
     document.getElementById('band-analysis-section').classList.remove('hidden');
+
+    // Update section header to show current wire length
+    const secH = document.querySelector('#band-analysis-section h2');
+    if (secH) secH.textContent = `バンド別マッチング評価（ロングワイヤー ${state.wireLength}m）`;
+
     const btbody = document.getElementById('band-results-tbody');
     btbody.innerHTML = '';
     result.bandAnalysis.forEach(ba => {
       const tr = document.createElement('tr');
       const qualityMap = {
-        ok:      { cls: 'ok',   text: '良好' },
-        caution: { cls: 'warn', text: '注意（インピーダンス変動大）' },
-        avoid:   { cls: 'warn', text: '非推奨（半波長付近）' }
+        ok:      { cls: 'ok',   icon: '✓', text: '良好' },
+        caution: { cls: 'warn', icon: '⚠', text: '注意（インピーダンス変動大）' },
+        avoid:   { cls: 'warn', icon: '⚠', text: '非推奨（半波長付近）' }
       };
-      const q = qualityMap[ba.quality] || { cls: '', text: ba.quality };
-      tr.innerHTML = `<td>${ba.freq} MHz</td><td class="${q.cls}">${q.text === '良好' ? '✓' : '⚠'} ${q.text}</td><td class="${q.cls}">${ba.quality === 'avoid' ? 'ワイヤー長を調整推奨' : ''}</td>`;
+      const q = qualityMap[ba.quality] || { cls: '', icon: '', text: ba.quality };
+      // Show half-wavelength reference and concrete advice
+      const hwRef = `λ/2 = ${ba.halfWaveM.toFixed(1)}m`;
+      const adviceCell = ba.advice
+        ? `<span style="color:var(--warn)">${ba.advice}</span>`
+        : `<span style="color:var(--text2)">${hwRef}</span>`;
+      tr.innerHTML = `
+        <td>${ba.freq} MHz</td>
+        <td class="${q.cls}">${q.icon} ${q.text}</td>
+        <td style="font-size:0.8rem;line-height:1.4;">${adviceCell}</td>`;
       btbody.appendChild(tr);
     });
   } else {
