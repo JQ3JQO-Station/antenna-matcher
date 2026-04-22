@@ -355,29 +355,39 @@ function toggleBand(cb) {
 
 // ---- Calculate ----
 function calculate() {
-  // Sync longwire length from input if the field is visible (step3 currently shown)
-  if (state.antennaType === 'longwire') {
-    const lwInput = document.getElementById('wire-length');
-    if (lwInput) {
-      const v = parseFloat(lwInput.value);
-      if (!isNaN(v) && v > 0) state.wireLength = v;
+  try {
+    // Sync longwire length from input if the field is visible (step3 currently shown)
+    if (state.antennaType === 'longwire') {
+      const lwInput = document.getElementById('wire-length');
+      if (lwInput) {
+        const v = parseFloat(lwInput.value);
+        if (!isNaN(v) && v > 0) state.wireLength = v;
+      }
+      if (!state.wireLength) state.wireLength = 20; // fallback
     }
-    if (!state.wireLength) state.wireLength = 20; // fallback
+
+    if (!state.antennaType) { alert('アンテナの種類が選択されていません。ステップ1から選択してください。'); return; }
+    if (!state.feedPoint)   { alert('給電点が選択されていません。ステップ2から選択してください。'); return; }
+    if (state.bands.length === 0) { alert('周波数帯が選択されていません。'); return; }
+
+    state.pattern = window.Matcher.selectPattern(state.antennaType, state.feedPoint);
+    if (!state.pattern) { alert('対応パターンが見つかりません（antennaType=' + state.antennaType + ', feedPoint=' + state.feedPoint + '）'); return; }
+
+    const lowestBand = Math.min(...state.bands);
+    state.coreResults = window.CalcUnun.calcAllCores(lowestBand, state.pattern.ratioNum, state.pattern.transformerType);
+
+    renderResult();
+
+    // Hide all steps, show result
+    document.querySelectorAll('.card[id^="step"]').forEach(c => c.classList.add('hidden'));
+    document.getElementById('result-panel').classList.add('visible');
+    updateProgressBar(5);
+    window.scrollTo(0, 0);
+
+  } catch(err) {
+    alert('エラーが発生しました:\n' + err.message + '\n\n' + err.stack);
+    console.error(err);
   }
-
-  state.pattern = window.Matcher.selectPattern(state.antennaType, state.feedPoint);
-  if (!state.pattern) return;
-
-  const lowestBand = Math.min(...state.bands);
-  state.coreResults = window.CalcUnun.calcAllCores(lowestBand, state.pattern.ratioNum, state.pattern.transformerType);
-
-  renderResult();
-
-  // Hide all steps, show result
-  document.querySelectorAll('.card[id^="step"]').forEach(c => c.classList.add('hidden'));
-  document.getElementById('result-panel').classList.add('visible');
-  updateProgressBar(5);
-  window.scrollTo(0, 0);
 }
 
 // ---- Render result ----
