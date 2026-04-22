@@ -63,7 +63,7 @@
 
   <!-- ===== Step 2: Feed Point ===== -->
   <div class="card hidden" id="step2">
-    <h2><span class="step-num">2</span> 給電方法・給電点を選んでください</h2>
+    <h2><span class="step-num">2</span> <span id="step2-heading">給電点を選んでください</span></h2>
     <div class="option-grid" id="feedpoint-options"></div>
     <div class="nav-buttons">
       <button class="btn btn-secondary" onclick="goStep(1)">← 戻る</button>
@@ -279,6 +279,15 @@ function renderFeedPoints() {
   const container = document.getElementById('feedpoint-options');
   container.innerHTML = '';
   document.getElementById('btn-next2').disabled = true;
+
+  // Update heading based on antenna type
+  const headings = {
+    longwire: '給電方法を選んでください',
+    delta:    '頂点の角度を選んでください（頂点給電）',
+    dipole:   '給電点を選んでください'
+  };
+  document.getElementById('step2-heading').textContent =
+    headings[state.antennaType] || '給電点を選んでください';
 
   const fps = window.Matcher.getFeedPoints(state.antennaType);
   fps.forEach(fp => {

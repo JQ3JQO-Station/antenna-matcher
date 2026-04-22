@@ -36,7 +36,7 @@ const PATTERNS = [
     ratio: '2:1',
     ratioNum: 2,
     transformerType: 'Balun',
-    notes: 'Delta loop fed at apex (60\u00b0 angle). Balanced antenna requires Balun. 2:1 Balun converts ~100\u03a9 to 50\u03a9.'
+    notes: 'デルタループ頂点給電・頂点角60°（鋭角三角形）。給電点インピーダンス~100Ω。平衡アンテナのため2:1 Balunが必要。'
   },
   {
     id: 'delta-side',
@@ -46,7 +46,7 @@ const PATTERNS = [
     ratio: '1:1',
     ratioNum: 1,
     transformerType: 'Balun',
-    notes: 'Delta loop fed at side midpoint (90\u00b0). Near 75\u03a9 \u2014 direct feed with 1:1 current Balun recommended.'
+    notes: 'デルタループ頂点給電・頂点角90°（直角三角形）。給電点インピーダンス~75Ω。1:1電流Balunで50Ω同軸に直結可。'
   },
   {
     id: 'delta-bottom',
@@ -56,7 +56,7 @@ const PATTERNS = [
     ratio: '4:1',
     ratioNum: 4,
     transformerType: 'Balun',
-    notes: 'Delta loop fed at bottom (120\u00b0). 4:1 Balun converts ~200\u03a9 to 50\u03a9.'
+    notes: 'デルタループ頂点給電・頂点角120°（鈍角三角形・扁平）。給電点インピーダンス~200Ω。4:1 Balunで50Ωに変換。'
   },
   {
     id: 'dipole-center',
@@ -94,9 +94,9 @@ function getFeedPoints(antennaType) {
       ];
     case 'delta':
       return [
-        { id: 'apex',   label: '\u9802\u70b9\u7d66\u96fb (60\u00b0)',     description: '~100\u03a9 \u30fb 2:1 Balun' },
-        { id: 'side',   label: '\u8fba\u306e\u4e2d\u70b9 (90\u00b0)',     description: '~75\u03a9 \u30fb 1:1 Balun\u76f4\u7d50' },
-        { id: 'bottom', label: '\u5e95\u8fba\u7d66\u96fb (120\u00b0)',    description: '~200\u03a9 \u30fb 4:1 Balun' }
+        { id: 'apex',   label: '頂点角 60°（鋭角）',  description: '~100Ω · 2:1 Balun' },
+        { id: 'side',   label: '頂点角 90°（直角）',  description: '~75Ω · 1:1 Balun直結' },
+        { id: 'bottom', label: '頂点角 120°（鈍角）', description: '~200Ω · 4:1 Balun' }
       ];
     case 'dipole':
       return [
